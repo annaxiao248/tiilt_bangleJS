@@ -57,16 +57,19 @@ export default function Home() {
               onClick={generateRandomString}
               className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm"
             >
-              Generate
+              Generate string
             </button>
-            <button 
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-3 align-center"
+            
+          </form>
+          
+        </div>
+        <button 
+              onClick={submitDB}
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-5 align-center"
               type="submit"
             >
               Submit
             </button>
-          </form>
-        </div>
       </div>
     </main>
   );
