@@ -3,7 +3,9 @@ import React, { useState } from "react";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import Papa from 'papaparse';
-import Graph from "../components/graph";
+import dynamic from 'next/dynamic';
+
+const Graph = dynamic(() => import("../components/graph"), { ssr: false });
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -61,11 +63,11 @@ export default function Home() {
   const temperatures = filteredData.map(row => row['Barometer Temperature']);
   const mapData = filteredData.filter(row => row['Latitude'] && row['Longitude']);
 
-  console.log("Timestamps:", timestamps);
-  console.log("Heart Rates:", heartRates);
-  console.log("Steps:", steps);
-  console.log("Altitudes:", altitudes);
-  console.log("Temperatures:", temperatures);
+  // console.log("Timestamps:", timestamps);
+  // console.log("Heart Rates:", heartRates);
+  // console.log("Steps:", steps);
+  // console.log("Altitudes:", altitudes);
+  // console.log("Temperatures:", temperatures);
   console.log("mapdata:", mapData);
 
   const graphData = {
