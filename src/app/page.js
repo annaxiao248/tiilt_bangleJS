@@ -1,11 +1,11 @@
 'use client'
-import React, { useState } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../../lib/firebase";
-import Papa from 'papaparse';
-import dynamic from 'next/dynamic';
 
-const Graph = dynamic(() => import("../components/graph"), { ssr: false });
+// src/app/page.js
+import React, { useState } from 'react';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import Papa from 'papaparse';
+import DynamicGraph from '../components/dynamicGraph';
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -25,6 +25,7 @@ export default function Home() {
     console.log("rand str:", result);
   }
 
+  // add name to db
   const submitDB = async (e) => {
     e.preventDefault();
     if (name !== '' && randomString !== '') {
@@ -46,6 +47,7 @@ export default function Home() {
       header: true,
       dynamicTyping: true,
       complete: function(results) {
+        // console.log("Parsed Data:", results.data.slice(0, 5)); 
         if (results.data.length > 0) {
           console.log("Field Names:", Object.keys(results.data[0])); 
         }
@@ -55,20 +57,13 @@ export default function Home() {
   };
 
   const filteredData = data.filter(row => row['Confidence'] > 70);
-
   const timestamps = filteredData.map(row => row['Time']);
   const heartRates = filteredData.map(row => row['Heartrate']);
   const steps = filteredData.map(row => row['Steps']);
   const altitudes = filteredData.map(row => row['Altitude']);
   const temperatures = filteredData.map(row => row['Barometer Temperature']);
-  const mapData = filteredData.filter(row => row['Latitude'] && row['Longitude']);
 
-  // console.log("Timestamps:", timestamps);
-  // console.log("Heart Rates:", heartRates);
-  // console.log("Steps:", steps);
-  // console.log("Altitudes:", altitudes);
-  // console.log("Temperatures:", temperatures);
-  console.log("mapdata:", mapData);
+  const mapData = filteredData.filter(row => row['Latitude'] && row['Longitude']);
 
   const graphData = {
     timestamps,
@@ -113,40 +108,40 @@ export default function Home() {
           Submit
         </button>
         <div>
-        <input 
-          className="col-span-2 mt-3"
-          type="file" 
-          onChange={handleFileUpload}   
-        />
+          <input 
+            className= "col-span-2 mt-3"
+            type="file" 
+            onChange={handleFileUpload}   
+          />
         </div>
       </div>
       {data.length > 0 && (
-          <>
-            <div className="mt-4">
-              <label htmlFor="graphSelect" className="text-black">Select Graph: </label>
-              <select id="graphSelect" value={selectedGraph} onChange={(e) => setSelectedGraph(e.target.value)}>
-                <option value="heartRate">Heart Rate</option>
-                <option value="steps">Steps</option>
-                <option value="altitude">Altitude</option>
-                <option value="temperature">Temperature</option>
-                <option value="location">Location</option>
+        <>
+          <div className="mt-4">
+            <label htmlFor="graphSelect" className="text-black">Select Graph: </label>
+            <select id="graphSelect" value={selectedGraph} onChange={(e) => setSelectedGraph(e.target.value)}>
+              <option value="heartRate">Heart Rate</option>
+              <option value="steps">Steps</option>
+              <option value="altitude">Altitude</option>
+              <option value="temperature">Temperature</option>
+              <option value="location">Location</option>
+            </select>
+            {selectedGraph === 'location' && (
+              <select id="mapFilterSelect" value={mapFilter} onChange={(e) => setMapFilter(e.target.value)}>
+                <option value="all">All</option>
+                <option value="chicago">Chicago</option>
+                <option value="us">US</option>
               </select>
-              {selectedGraph === 'location' && (
-                <select id="mapFilterSelect" value={mapFilter} onChange={(e) => setMapFilter(e.target.value)}>
-                  <option value="all">All</option>
-                  <option value="chicago">Chicago</option>
-                  <option value="us">US</option>
-                </select>
-              )}
-            </div>
-            <Graph
-              selectedGraph={selectedGraph}
-              graphData={graphData}
-              mapData={mapData}
-              mapFilter={mapFilter}
-            />
-          </>
-        )}
+            )}
+          </div>
+          <DynamicGraph
+            selectedGraph={selectedGraph} 
+            graphData={graphData} 
+            mapData={mapData} 
+            mapFilter={mapFilter} 
+          />
+        </>
+      )}
     </main>
   );
 }
