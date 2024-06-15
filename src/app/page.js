@@ -10,6 +10,7 @@ export default function Home() {
   const [randomString, setRandomString] = useState(''); 
   const [data, setData] = useState([]);
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
+  const [mapFilter, setMapFilter] = useState('all');
 
   function generateRandomString() {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -22,7 +23,6 @@ export default function Home() {
     console.log("rand str:", result);
   }
 
-  // add name to db
   const submitDB = async (e) => {
     e.preventDefault();
     if (name !== '' && randomString !== '') {
@@ -38,25 +38,12 @@ export default function Home() {
     }
   }
 
-  // const handleFileUpload = (e) => {
-  //   const file = e.target.files[0];
-  //   Papa.parse(file, {
-  //     header: true,
-  //     dynamicTyping: true,
-  //     complete: function(results) {
-  //       console.log("Parsed Data:", results.data);
-  //       setData(results.data);
-  //     }
-  //   });
-  // };
-
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     Papa.parse(file, {
       header: true,
       dynamicTyping: true,
       complete: function(results) {
-        // console.log("Parsed Data:", results.data.slice(0, 5)); 
         if (results.data.length > 0) {
           console.log("Field Names:", Object.keys(results.data[0])); 
         }
@@ -64,36 +51,29 @@ export default function Home() {
       }
     });
   };
-  
 
+  const filteredData = data.filter(row => row['Confidence'] > 70);
 
-  console.log("data heree", data)
-  // console.log("yayya", data[1])
-  
-  const filteredData = data.filter(row => {
-    // console.log("Row Confidence:", row['Confidence']); // Adjust field name if necessary
-    return row['Confidence'] > 70; // Adjust field name if necessary
-  });
-  // console.log("Filtered Data:", filteredData);
-
-  // const filteredData = data.filter(row => row.confidence > 70);
   const timestamps = filteredData.map(row => row['Time']);
   const heartRates = filteredData.map(row => row['Heartrate']);
   const steps = filteredData.map(row => row['Steps']);
   const altitudes = filteredData.map(row => row['Altitude']);
   const temperatures = filteredData.map(row => row['Barometer Temperature']);
+  const mapData = filteredData.filter(row => row['Latitude'] && row['Longitude']);
 
-  // console.log("Timestamps:", timestamps);
-  // console.log("Heart Rates:", heartRates);
-  // console.log("Steps:", steps);
-  // console.log("Altitudes:", altitudes);
-  // console.log("Temperatures:", temperatures);
+  console.log("Timestamps:", timestamps);
+  console.log("Heart Rates:", heartRates);
+  console.log("Steps:", steps);
+  console.log("Altitudes:", altitudes);
+  console.log("Temperatures:", temperatures);
+  console.log("mapdata:", mapData);
 
   const graphData = {
+    timestamps,
     heartRate: { yData: heartRates, yTitle: "Heart Rate" },
     steps: { yData: steps, yTitle: "Steps" },
     altitude: { yData: altitudes, yTitle: "Altitude" },
-    temperature: { yData: temperatures, yTitle: "Temperature " },
+    temperature: { yData: temperatures, yTitle: "Temperature" },
   };
 
   return (
@@ -121,11 +101,8 @@ export default function Home() {
             >
               Generate string
             </button>
-            
           </form>
-          
         </div>
-        
         <button 
           onClick={submitDB}
           className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-5 align-center"
@@ -135,13 +112,11 @@ export default function Home() {
         </button>
         <div>
         <input 
-          className= "col-span-2 mt-3"
+          className="col-span-2 mt-3"
           type="file" 
           onChange={handleFileUpload}   
         />
         </div>
-
-       
       </div>
       {data.length > 0 && (
           <>
@@ -152,18 +127,24 @@ export default function Home() {
                 <option value="steps">Steps</option>
                 <option value="altitude">Altitude</option>
                 <option value="temperature">Temperature</option>
+                <option value="location">Location</option>
               </select>
+              {selectedGraph === 'location' && (
+                <select id="mapFilterSelect" value={mapFilter} onChange={(e) => setMapFilter(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="chicago">Chicago</option>
+                  <option value="us">US</option>
+                </select>
+              )}
             </div>
-            <Graph 
-              id={`${selectedGraph}Graph`} 
-              title={selectedGraph.charAt(0).toUpperCase() + selectedGraph.slice(1)} 
-              xData={timestamps} 
-              yData={graphData[selectedGraph].yData} 
-              yTitle={graphData[selectedGraph].yTitle} 
+            <Graph
+              selectedGraph={selectedGraph}
+              graphData={graphData}
+              mapData={mapData}
+              mapFilter={mapFilter}
             />
           </>
         )}
-     
     </main>
   );
 }
