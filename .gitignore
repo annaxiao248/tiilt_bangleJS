@@ -27,6 +27,9 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.local
+.env.*.local
+.env
 
 # vercel
 .vercel
@@ -37,4 +40,4 @@ next-env.d.ts
 
 #ignore firebase key file
 firebase-key.json
-firebase.js
+# firebase.js
