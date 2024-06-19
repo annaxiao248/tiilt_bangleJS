@@ -9,37 +9,48 @@ import DynamicGraph from '../components/dynamicGraph';
 
 export default function Home() {
   const [name, setName] = useState('');
-  const [randomString, setRandomString] = useState(''); 
   const [data, setData] = useState([]);
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
   const [mapFilter, setMapFilter] = useState('all');
 
-  function generateRandomString() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    const charactersLength = characters.length;
-    for (let i = 0; i < 10; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    setRandomString(result);
-    console.log("rand str:", result);
-  }
-
-  // add name to db
   const submitDB = async (e) => {
     e.preventDefault();
-    if (name !== '' && randomString !== '') {
-      console.log("submittin:", name, randomString);
-      await addDoc(collection(db, 'tiilt-bangleJS'), {
-        name: name.trim(),
-        data: randomString
-      });
-      setName('');
-      setRandomString('');
+    if (name.trim() !== '' && data.length > 0) {
+      console.log("submitting:", name, data);
+      try {
+        const filteredData = data.map(row => ({
+          timestamp: row['Time'],
+          heartrate: row['Heartrate'],
+          steps: row['Steps'],
+          altitude: row['Altitude'],
+          temperature: row['Barometer Temperature'],
+          latitude: row['Latitude'],
+          longitude: row['Longitude'],
+        })).filter(row => 
+          row.timestamp !== undefined &&
+          row.heartrate !== undefined &&
+          row.steps !== undefined &&
+          row.altitude !== undefined &&
+          row.temperature !== undefined &&
+          row.latitude !== undefined &&
+          row.longitude !== undefined
+        );
+
+        await addDoc(collection(db, 'tiilt-bangleJS'), {
+          name: name.trim(),
+          data: filteredData,
+        });
+        alert('Data successfully uploaded to Firebase.');
+        setName('');
+        setData([]);
+      } catch (error) {
+        console.error("Error adding document: ", error);
+        alert('Failed to upload data to Firebase.');
+      }
     } else {
-      alert('Please enter a name and generate a random string.');
+      alert('Please enter a name and upload a CSV file.');
     }
-  }
+  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -47,7 +58,6 @@ export default function Home() {
       header: true,
       dynamicTyping: true,
       complete: function(results) {
-        // console.log("Parsed Data:", results.data.slice(0, 5)); 
         if (results.data.length > 0) {
           console.log("Field Names:", Object.keys(results.data[0])); 
         }
@@ -85,34 +95,18 @@ export default function Home() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter your name"
             />
-            <input className="col-span-3 p-3 border mx-3"
-              type="text"
-              value={randomString}
-              placeholder="Random String"
-              readOnly
+            <input 
+              className="col-span-2 mt-3"
+              type="file" 
+              onChange={handleFileUpload}   
             />
             <button 
-              type="button"
-              onClick={generateRandomString}
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm"
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-5 align-center"
+              type="submit"
             >
-              Generate string
+              Submit
             </button>
           </form>
-        </div>
-        <button 
-          onClick={submitDB}
-          className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-5 align-center"
-          type="submit"
-        >
-          Submit
-        </button>
-        <div>
-          <input 
-            className= "col-span-2 mt-3"
-            type="file" 
-            onChange={handleFileUpload}   
-          />
         </div>
       </div>
       {data.length > 0 && (
