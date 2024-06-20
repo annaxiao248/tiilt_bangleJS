@@ -1,8 +1,6 @@
 'use client'
-
-// src/app/page.js
 import React, { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import Papa from 'papaparse';
 import DynamicGraph from '../components/dynamicGraph';
@@ -13,44 +11,47 @@ export default function Home() {
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
   const [mapFilter, setMapFilter] = useState('all');
 
+  // add name and data to db
   const submitDB = async (e) => {
     e.preventDefault();
-    if (name.trim() !== '' && data.length > 0) {
+    if (name !== '' && data.length > 0) {
       console.log("submitting:", name, data);
-      try {
-        const filteredData = data.map(row => ({
-          timestamp: row['Time'],
-          heartrate: row['Heartrate'],
-          steps: row['Steps'],
-          altitude: row['Altitude'],
-          temperature: row['Barometer Temperature'],
-          latitude: row['Latitude'],
-          longitude: row['Longitude'],
-        })).filter(row => 
-          row.timestamp !== undefined &&
-          row.heartrate !== undefined &&
-          row.steps !== undefined &&
-          row.altitude !== undefined &&
-          row.temperature !== undefined &&
-          row.latitude !== undefined &&
-          row.longitude !== undefined
-        );
-
-        await addDoc(collection(db, 'tiilt-bangleJS'), {
-          name: name.trim(),
-          data: filteredData,
-        });
-        alert('Data successfully uploaded to Firebase.');
-        setName('');
-        setData([]);
-      } catch (error) {
-        console.error("Error adding document: ", error);
-        alert('Failed to upload data to Firebase.');
-      }
+      await setDoc(doc(db, 'tiilt-bangleJS', name.trim()), {
+        name: name.trim(),
+        data: data
+      });
+      setName('');
+      setData([]);
     } else {
       alert('Please enter a name and upload a CSV file.');
     }
   };
+
+  // fetch data from db
+  const fetchDataFromDB = async (e) => {
+    e.preventDefault();
+    if (name !== '') {
+      const docRef = doc(db, 'tiilt-bangleJS', name.trim());
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const fetchedData = docSnap.data().data.map(entry => {
+          if (entry.Time instanceof Timestamp) {
+            return {
+              ...entry,
+              Time: entry.Time.toDate()
+            };
+          }
+          return entry;
+        });
+        console.log("fetched data:", fetchedData);
+        setData(fetchedData);
+      } else {
+        alert('No data found for this name.');
+      }
+    } else {
+      alert('Please enter a name.');
+  }
+};
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -95,18 +96,27 @@ export default function Home() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter your name"
             />
-            <input 
-              className="col-span-2 mt-3"
-              type="file" 
-              onChange={handleFileUpload}   
-            />
             <button 
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mt-5 align-center"
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm"
               type="submit"
             >
               Submit
             </button>
+            <button 
+              onClick={fetchDataFromDB}
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm"
+              type="button"
+            >
+              Fetch Data
+            </button>
           </form>
+        </div>
+        <div>
+          <input 
+            className= "col-span-2 mt-3"
+            type="file" 
+            onChange={handleFileUpload}   
+          />
         </div>
       </div>
       {data.length > 0 && (
