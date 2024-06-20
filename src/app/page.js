@@ -97,7 +97,7 @@ export default function Home() {
               placeholder="Enter your name"
             />
             <button 
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm"
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mx-5"
               type="submit"
             >
               Submit
