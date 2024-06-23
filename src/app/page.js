@@ -1,6 +1,6 @@
 'use client'
-import React, { useState } from 'react';
-import { collection, doc, setDoc, getDoc, Timestamp } from 'firebase/firestore';
+import React, { useState, useRef, useEffect } from 'react';
+import { collection, doc, addDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import Papa from 'papaparse';
 import DynamicGraph from '../components/dynamicGraph';
@@ -8,50 +8,79 @@ import DynamicGraph from '../components/dynamicGraph';
 export default function Home() {
   const [name, setName] = useState('');
   const [data, setData] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [selectedEntry, setSelectedEntry] = useState('');
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
   const [mapFilter, setMapFilter] = useState('all');
+  const fileInputRef = useRef(null);
 
-  // add name and data to db
   const submitDB = async (e) => {
     e.preventDefault();
     if (name !== '' && data.length > 0) {
-      console.log("submitting:", name, data);
-      await setDoc(doc(db, 'tiilt-bangleJS', name.trim()), {
-        name: name.trim(),
-        data: data
-      });
-      setName('');
-      setData([]);
+      const userDocRef = doc(db, 'tiilt-bangleJS', name.trim());
+      const userSubCollectionRef = collection(userDocRef, 'entries');
+      const newEntry = {
+        data: data,
+        timestamp: Timestamp.now()
+      };
+
+      try {
+        await addDoc(userSubCollectionRef, newEntry);
+        alert('Submission successful!');
+
+        setName('');
+        setData([]);
+        setEntries([]);
+        setSelectedEntry('');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''; // Reset file input
+        }
+      } catch (error) {
+        console.error('Error submitting data: ', error);
+        alert('Error submitting data. Please try again.');
+      }
     } else {
       alert('Please enter a name and upload a CSV file.');
     }
   };
 
-  // fetch data from db
   const fetchDataFromDB = async (e) => {
     e.preventDefault();
     if (name !== '') {
-      const docRef = doc(db, 'tiilt-bangleJS', name.trim());
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const fetchedData = docSnap.data().data.map(entry => {
-          if (entry.Time instanceof Timestamp) {
-            return {
-              ...entry,
-              Time: entry.Time.toDate()
-            };
-          }
-          return entry;
-        });
-        console.log("fetched data:", fetchedData);
-        setData(fetchedData);
+      const userDocRef = doc(db, 'tiilt-bangleJS', name.trim());
+      const userSubCollectionRef = collection(userDocRef, 'entries');
+      const userDocsSnap = await getDocs(userSubCollectionRef);
+      let userEntries = userDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      if (userEntries.length > 0) {
+        // Sort entries by timestamp from newest to oldest
+        userEntries = userEntries.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+        setEntries(userEntries);
+        setSelectedEntry(userEntries[0].id); // Select the first entry by default
       } else {
         alert('No data found for this name.');
       }
     } else {
       alert('Please enter a name.');
-  }
-};
+    }
+  };
+
+  useEffect(() => {
+    if (selectedEntry && entries.length > 0) {
+      const entry = entries.find(entry => entry.id === selectedEntry);
+      if (entry) {
+        const fetchedData = entry.data.map(dataEntry => {
+          if (dataEntry.Time && dataEntry.Time.seconds) {
+            return {
+              ...dataEntry,
+              Time: new Date(dataEntry.Time.seconds * 1000)
+            };
+          }
+          return dataEntry;
+        });
+        setData(fetchedData);
+      }
+    }
+  }, [selectedEntry, entries]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -97,7 +126,7 @@ export default function Home() {
               placeholder="Enter your name"
             />
             <button 
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mx-5"
+              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mx-3"
               type="submit"
             >
               Submit
@@ -113,12 +142,25 @@ export default function Home() {
         </div>
         <div>
           <input 
-            className= "col-span-2 mt-3"
+            className="col-span-2 mt-3"
             type="file" 
             onChange={handleFileUpload}   
+            ref={fileInputRef} // Assign the ref to the file input
           />
         </div>
       </div>
+      {entries.length > 0 && (
+        <div className="mt-4">
+          <label htmlFor="entrySelect" className="text-black">Select Entry: </label>
+          <select id="entrySelect" value={selectedEntry} onChange={(e) => setSelectedEntry(e.target.value)}>
+            {entries.map(entry => (
+              <option key={entry.id} value={entry.id}>
+                {new Date(entry.timestamp.seconds * 1000).toLocaleString()}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {data.length > 0 && (
         <>
           <div className="mt-4">
