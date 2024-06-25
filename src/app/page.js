@@ -9,7 +9,7 @@ export default function Home() {
   const [name, setName] = useState('');
   const [data, setData] = useState([]);
   const [entries, setEntries] = useState([]);
-  const [selectedEntry, setSelectedEntry] = useState('');
+  const [selectedEntries, setSelectedEntries] = useState([]);
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
   const [mapFilter, setMapFilter] = useState('all');
   const fileInputRef = useRef(null);
@@ -31,7 +31,7 @@ export default function Home() {
         setName('');
         setData([]);
         setEntries([]);
-        setSelectedEntry('');
+        setSelectedEntries([]);
         if (fileInputRef.current) {
           fileInputRef.current.value = ''; // Reset file input
         }
@@ -55,7 +55,6 @@ export default function Home() {
         // Sort entries by timestamp from newest to oldest
         userEntries = userEntries.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
         setEntries(userEntries);
-        setSelectedEntry(userEntries[0].id); // Select the first entry by default
       } else {
         alert('No data found for this name.');
       }
@@ -65,22 +64,27 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (selectedEntry && entries.length > 0) {
-      const entry = entries.find(entry => entry.id === selectedEntry);
-      if (entry) {
-        const fetchedData = entry.data.map(dataEntry => {
-          if (dataEntry.Time && dataEntry.Time.seconds) {
-            return {
-              ...dataEntry,
-              Time: new Date(dataEntry.Time.seconds * 1000)
-            };
-          }
-          return dataEntry;
-        });
-        setData(fetchedData);
-      }
+    if (selectedEntries.length > 0 && entries.length > 0) {
+      const fetchedData = selectedEntries.map(entryId => {
+        const entry = entries.find(entry => entry.id === entryId);
+        if (entry) {
+          return entry.data.map(dataEntry => {
+            if (dataEntry.Time && dataEntry.Time.seconds) {
+              return {
+                ...dataEntry,
+                Time: new Date(dataEntry.Time.seconds * 1000)
+              };
+            }
+            return dataEntry;
+          });
+        }
+        return [];
+      });
+      setData(fetchedData);
+    } else {
+      setData([]);
     }
-  }, [selectedEntry, entries]);
+  }, [selectedEntries, entries]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -96,21 +100,32 @@ export default function Home() {
     });
   };
 
-  const filteredData = data.filter(row => row['Confidence'] > 70);
-  const timestamps = filteredData.map(row => row['Time']);
-  const heartRates = filteredData.map(row => row['Heartrate']);
-  const steps = filteredData.map(row => row['Steps']);
-  const altitudes = filteredData.map(row => row['Altitude']);
-  const temperatures = filteredData.map(row => row['Barometer Temperature']);
+  const filteredData = data.map(entryData => entryData.filter(row => row['Confidence'] > 70));
 
-  const mapData = filteredData.filter(row => row['Latitude'] && row['Longitude']);
+  const graphData = filteredData.map(entry => {
+    const timestamps = entry.map(row => row['Time']);
+    const heartRates = entry.map(row => row['Heartrate']);
+    const steps = entry.map(row => row['Steps']);
+    const altitudes = entry.map(row => row['Altitude']);
+    const temperatures = entry.map(row => row['Barometer Temperature']);
+    const mapData = entry.filter(row => row['Latitude'] && row['Longitude']);
 
-  const graphData = {
-    timestamps,
-    heartRate: { yData: heartRates, yTitle: "Heart Rate" },
-    steps: { yData: steps, yTitle: "Steps" },
-    altitude: { yData: altitudes, yTitle: "Altitude" },
-    temperature: { yData: temperatures, yTitle: "Temperature" },
+    return {
+      timestamps,
+      heartRate: { yData: heartRates, yTitle: "Heart Rate" },
+      steps: { yData: steps, yTitle: "Steps" },
+      altitude: { yData: altitudes, yTitle: "Altitude" },
+      temperature: { yData: temperatures, yTitle: "Temperature" },
+      mapData,
+    };
+  });
+
+  const handleCheckboxChange = (entryId) => {
+    setSelectedEntries(prevState =>
+      prevState.includes(entryId)
+        ? prevState.filter(id => id !== entryId)
+        : [...prevState, entryId]
+    );
   };
 
   return (
@@ -151,14 +166,21 @@ export default function Home() {
       </div>
       {entries.length > 0 && (
         <div className="mt-4">
-          <label htmlFor="entrySelect" className="text-black">Select Entry: </label>
-          <select id="entrySelect" value={selectedEntry} onChange={(e) => setSelectedEntry(e.target.value)}>
-            {entries.map(entry => (
-              <option key={entry.id} value={entry.id}>
+          <label className="text-black">Select Entries: </label>
+          {entries.map(entry => (
+            <div key={entry.id}>
+              <input 
+                type="checkbox"
+                id={entry.id}
+                value={entry.id}
+                onChange={() => handleCheckboxChange(entry.id)}
+                checked={selectedEntries.includes(entry.id)}
+              />
+              <label htmlFor={entry.id}>
                 {new Date(entry.timestamp.seconds * 1000).toLocaleString()}
-              </option>
-            ))}
-          </select>
+              </label>
+            </div>
+          ))}
         </div>
       )}
       {data.length > 0 && (
@@ -183,8 +205,8 @@ export default function Home() {
           <DynamicGraph
             selectedGraph={selectedGraph} 
             graphData={graphData} 
-            mapData={mapData} 
             mapFilter={mapFilter} 
+            selectedEntries={selectedEntries}
           />
         </>
       )}

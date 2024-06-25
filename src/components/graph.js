@@ -2,15 +2,18 @@ import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
-const Graph = ({ selectedGraph, graphData, mapData, mapFilter }) => {
+const Graph = ({ selectedGraph, graphData, mapFilter, selectedEntries }) => {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Filter map data based on mapFilter
-  const getFilteredMapData = () => {
+  const colors = ['#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6',
+    '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+    '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A'];
+
+  const getFilteredMapData = (mapData) => {
     if (mapFilter === 'chicago') {
       return mapData.filter(row => 
         row['Latitude'] >= 41.644335 && row['Latitude'] <= 42.023131 &&
@@ -26,10 +29,6 @@ const Graph = ({ selectedGraph, graphData, mapData, mapFilter }) => {
     }
   };
 
-  const filteredMapData = getFilteredMapData();
-  const latitudes = filteredMapData.map(row => row['Latitude']);
-  const longitudes = filteredMapData.map(row => row['Longitude']);
-
   if (!isClient) {
     return null;
   }
@@ -37,41 +36,62 @@ const Graph = ({ selectedGraph, graphData, mapData, mapFilter }) => {
   return (
     <div>
       {selectedGraph === 'location' ? (
-        <Plot
-          data={[
-            {
-              type: 'scattermapbox',
-              lat: latitudes,
-              lon: longitudes,
-              mode: 'markers',
-              marker: { size: 14 },
-              text: filteredMapData.map(row => `Lat: ${row['Latitude']}, Lon: ${row['Longitude']}`),
-            },
-          ]}
-          layout={{
-            autosize: true,
-            hovermode: 'closest',
-            mapbox: {
-              style: 'open-street-map',
-              center: { lat: 41.8781, lon: -87.6298 },
-              zoom: 10,
-            },
-            margin: { t: 0, b: 0, l: 0, r: 0 },
-          }}
-          style={{ width: '100%', height: '600px' }}
-          useResizeHandler
-        />
+        selectedEntries.map((entryId, index) => {
+          const entryData = graphData.find((data, i) => selectedEntries[i] === entryId);
+          if (!entryData) {
+            return null;
+          }
+          const mapData = entryData.mapData;
+          const filteredMapData = getFilteredMapData(mapData);
+          const latitudes = filteredMapData.map(row => row['Latitude']);
+          const longitudes = filteredMapData.map(row => row['Longitude']);
+          
+          return (
+            <Plot
+              key={entryId}
+              data={[
+                {
+                  type: 'scattermapbox',
+                  lat: latitudes,
+                  lon: longitudes,
+                  mode: 'markers',
+                  marker: { size: 14 },
+                  text: filteredMapData.map(row => `Lat: ${row['Latitude']}, Lon: ${row['Longitude']}`),
+                },
+              ]}
+              layout={{
+                autosize: true,
+                hovermode: 'closest',
+                mapbox: {
+                  style: 'open-street-map',
+                  center: { lat: 41.8781, lon: -87.6298 },
+                  zoom: 10,
+                },
+                margin: { t: 0, b: 0, l: 0, r: 0 },
+              }}
+              style={{ width: '100%', height: '600px' }}
+              useResizeHandler
+            />
+          );
+        })
       ) : (
         <Plot
-          data={[
-            {
-              x: graphData.timestamps,
-              y: graphData[selectedGraph].yData,
+          data={selectedEntries.map((entryId, index) => {
+            const entryData = graphData.find((data, i) => selectedEntries[i] === entryId);
+            if (!entryData) {
+              return null;
+            }
+            const graphEntry = entryData[selectedGraph];
+            return {
+              x: entryData.timestamps,
+              y: graphEntry.yData,
               type: 'scatter',
               mode: 'lines+points',
-            },
-          ]}
-          layout={{ width: 720, height: 440, title: graphData[selectedGraph].yTitle }}
+              name: `Entry ${index + 1}`,
+              line: { color: colors[index % colors.length] },
+            };
+          }).filter(data => data !== null)}
+          layout={{ width: 720, height: 440, title: graphData[0][selectedGraph].yTitle }}
         />
       )}
     </div>
