@@ -20,7 +20,7 @@ export default function Home() {
       const userDocRef = doc(db, 'tiilt-bangleJS', name.trim());
       const userSubCollectionRef = collection(userDocRef, 'entries');
       const newEntry = {
-        data: data,
+        data: data[0],  // Take the first entry in data array for submission
         timestamp: Timestamp.now()
       };
 
@@ -55,6 +55,7 @@ export default function Home() {
         // Sort entries by timestamp from newest to oldest
         userEntries = userEntries.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
         setEntries(userEntries);
+        console.log("fetched", entries)
       } else {
         alert('No data found for this name.');
       }
@@ -64,9 +65,11 @@ export default function Home() {
   };
 
   useEffect(() => {
+    console.log("selcted", selectedEntries)
     if (selectedEntries.length > 0 && entries.length > 0) {
       const fetchedData = selectedEntries.map(entryId => {
         const entry = entries.find(entry => entry.id === entryId);
+        console.log("entry in useeffect", entry)
         if (entry) {
           return entry.data.map(dataEntry => {
             if (dataEntry.Time && dataEntry.Time.seconds) {
@@ -76,11 +79,12 @@ export default function Home() {
               };
             }
             return dataEntry;
-          });
+          }); 
         }
         return [];
       });
       setData(fetchedData);
+      console.log("data in useffect", data)
     } else {
       setData([]);
     }
@@ -88,19 +92,34 @@ export default function Home() {
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    Papa.parse(file, {
-      header: true,
-      dynamicTyping: true,
-      complete: function(results) {
-        if (results.data.length > 0) {
-          console.log("Field Names:", Object.keys(results.data[0])); 
+    if (file) {
+      Papa.parse(file, {
+        header: true,
+        dynamicTyping: true,
+        complete: function(results) {
+          if (results.data.length > 0) {
+            console.log("Field Names:", Object.keys(results.data[0])); 
+           
+          }
+          setData([results.data]);  // Wrap the uploaded data in an array to match the structure
+          console.log("data1", data)
+          // console.log(data)
+          console.log("data2", results.data)
+          console.log("data3", results.data[0])
+        },
+        error: function(error) {
+          console.error('Error parsing CSV file: ', error);
+          alert('Error parsing CSV file. Please try again.');
         }
-        setData(results.data);
-      }
-    });
+      });
+    } else {
+      alert('No file selected. Please select a CSV file.');
+    }
   };
 
+  console.log("data4", data)
   const filteredData = data.map(entryData => entryData.filter(row => row['Confidence'] > 70));
+  console.log("filted data", filteredData)
 
   const graphData = filteredData.map(entry => {
     const timestamps = entry.map(row => row['Time']);
