@@ -53,7 +53,7 @@ const Graph = ({ selectedGraph, graphData, mapFilter, selectedEntries }) => {
                   lat: latitudes,
                   lon: longitudes,
                   mode: 'markers',
-                  marker: { size: 14 },
+                  marker: { size: 14, color: colors[index % colors.length] }, // Assign a unique color to each set of points
                   text: filteredMapData.map(row => `Lat: ${row['Latitude']}, Lon: ${row['Longitude']}`),
                 },
               ]}
