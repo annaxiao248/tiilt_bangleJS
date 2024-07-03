@@ -1,31 +1,33 @@
-'use client'
+'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { collection, doc, addDoc, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import Papa from 'papaparse';
 import DynamicGraph from '../components/dynamicGraph';
 
 export default function Home() {
-  const [name, setName] = useState('');
-  const [data, setData] = useState([]);
-  const [entries, setEntries] = useState([]);
-  const [selectedEntries, setSelectedEntries] = useState([]);
+  const [names, setNames] = useState(['', '']);
+  const [dataSets, setDataSets] = useState([[], []]);
+  const [entries, setEntries] = useState([[], []]);
+  const [selectedEntries, setSelectedEntries] = useState([[], []]);
   const [selectedGraph, setSelectedGraph] = useState('heartRate');
   const [mapFilter, setMapFilter] = useState('all');
   const fileInputRef = useRef(null);
 
-  const fetchDataFromDB = async (e) => {
+  const fetchDataFromDB = async (index, e) => {
     e.preventDefault();
+    const name = names[index];
     if (name !== '') {
       const userDocRef = doc(db, 'tiilt-bangleJS', name.trim());
       const userSubCollectionRef = collection(userDocRef, 'entries');
       const userDocsSnap = await getDocs(userSubCollectionRef);
       let userEntries = userDocsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       if (userEntries.length > 0) {
-        // Sort entries by timestamp from newest to oldest
         userEntries = userEntries.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
-        setEntries(userEntries);
-        console.log("fetched", entries)
+        setEntries(prevEntries => {
+          const newEntries = [...prevEntries];
+          newEntries[index] = userEntries;
+          return newEntries;
+        });
       } else {
         alert('No data found for this name.');
       }
@@ -35,105 +37,122 @@ export default function Home() {
   };
 
   useEffect(() => {
-    console.log("selcted", selectedEntries)
-    if (selectedEntries.length > 0 && entries.length > 0) {
-      const fetchedData = selectedEntries.map(entryId => {
-        const entry = entries.find(entry => entry.id === entryId);
-        console.log("entry in useeffect", entry)
-        if (entry) {
-          return entry.data.map(dataEntry => {
-            if (dataEntry.Time && dataEntry.Time.seconds) {
-              return {
-                ...dataEntry,
-                Time: new Date(dataEntry.Time.seconds * 1000)
-              };
-            }
-            return dataEntry;
-          }); 
-        }
-        return [];
-      });
-      setData(fetchedData);
-      console.log("data in useffect", data)
-    } else {
-      setData([]);
-    }
+    dataSets.forEach((dataSet, index) => {
+      if (selectedEntries[index].length > 0 && entries[index].length > 0) {
+        const fetchedData = selectedEntries[index].map(entryId => {
+          const entry = entries[index].find(entry => entry.id === entryId);
+          if (entry) {
+            return entry.data.map(dataEntry => {
+              if (dataEntry.Time && dataEntry.Time.seconds) {
+                return {
+                  ...dataEntry,
+                  Time: new Date(dataEntry.Time.seconds * 1000)
+                };
+              }
+              return dataEntry;
+            });
+          }
+          return [];
+        });
+        setDataSets(prevDataSets => {
+          const newDataSets = [...prevDataSets];
+          newDataSets[index] = fetchedData;
+          return newDataSets;
+        });
+      } else {
+        setDataSets(prevDataSets => {
+          const newDataSets = [...prevDataSets];
+          newDataSets[index] = [];
+          return newDataSets;
+        });
+      }
+    });
   }, [selectedEntries, entries]);
 
- 
-  console.log("data4", data)
-  const filteredData = data.map(entryData => entryData.filter(row => row['Confidence'] > 70));
-  console.log("filted data", filteredData)
-
-  const graphData = filteredData.map(entry => {
-    const timestamps = entry.map(row => row['Time']);
-    const heartRates = entry.map(row => row['Heartrate']);
-    const steps = entry.map(row => row['Steps']);
-    const altitudes = entry.map(row => row['Altitude']);
-    const temperatures = entry.map(row => row['Barometer Temperature']);
-    const mapData = entry.filter(row => row['Latitude'] && row['Longitude']);
-
-    return {
-      timestamps,
-      heartRate: { yData: heartRates, yTitle: "Heart Rate" },
-      steps: { yData: steps, yTitle: "Steps" },
-      altitude: { yData: altitudes, yTitle: "Altitude" },
-      temperature: { yData: temperatures, yTitle: "Temperature" },
-      mapData,
-    };
-  });
-
-  const handleCheckboxChange = (entryId) => {
-    setSelectedEntries(prevState =>
-      prevState.includes(entryId)
-        ? prevState.filter(id => id !== entryId)
-        : [...prevState, entryId]
-    );
+  const handleCheckboxChange = (index, entryId) => {
+    setSelectedEntries(prevState => {
+      const newSelectedEntries = [...prevState];
+      newSelectedEntries[index] = newSelectedEntries[index].includes(entryId)
+        ? newSelectedEntries[index].filter(id => id !== entryId)
+        : [...newSelectedEntries[index], entryId];
+      return newSelectedEntries;
+    });
   };
+
+  const filteredDataSets = dataSets.map(dataSet => 
+    dataSet.map(entryData => entryData.filter(row => row['Confidence'] > 70))
+  );
+
+  const graphDataSets = filteredDataSets.map(filteredData => 
+    filteredData.map(entry => {
+      const timestamps = entry.map(row => row['Time']);
+      const heartRates = entry.map(row => row['Heartrate']);
+      const steps = entry.map(row => row['Steps']);
+      const altitudes = entry.map(row => row['Altitude']);
+      const temperatures = entry.map(row => row['Barometer Temperature']);
+      const mapData = entry.filter(row => row['Latitude'] && row['Longitude']);
+
+      return {
+        timestamps,
+        heartRate: { yData: heartRates, yTitle: "Heart Rate" },
+        steps: { yData: steps, yTitle: "Steps" },
+        altitude: { yData: altitudes, yTitle: "Altitude" },
+        temperature: { yData: temperatures, yTitle: "Temperature" },
+        mapData,
+      };
+    })
+  );
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24 p-4">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <h1 className="text-4xl p-4 text-center"> Tiilt BangleJS</h1>
         <div className="bg-slate-800 p-4 rounded-lg">
-          <form className="grid grid-cols-7 items-center text-black">
-            <input className="col-span-2 p-3 border"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your name"
-            />
-            <button 
-              onClick={fetchDataFromDB}
-              className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mx-3"
-              type="button"
-            >
-              Fetch Data
-            </button>
-          </form>
-        </div>
-       
-      </div>
-      {entries.length > 0 && (
-        <div className="mt-4">
-          <label className="text-black">Select Entries: </label>
-          {entries.map(entry => (
-            <div key={entry.id}>
-              <input 
-                type="checkbox"
-                id={entry.id}
-                value={entry.id}
-                onChange={() => handleCheckboxChange(entry.id)}
-                checked={selectedEntries.includes(entry.id)}
+          {names.map((name, index) => (
+            <form key={index} className="grid grid-cols-7 items-center text-black mb-4">
+              <input className="col-span-2 p-3 border"
+                type="text"
+                value={name}
+                onChange={(e) => setNames(prevNames => {
+                  const newNames = [...prevNames];
+                  newNames[index] = e.target.value;
+                  return newNames;
+                })}
+                placeholder={`Enter name ${index + 1}`}
               />
-              <label htmlFor={entry.id}>
-                {new Date(entry.timestamp.seconds * 1000).toLocaleString()}
-              </label>
-            </div>
+              <button 
+                onClick={(e) => fetchDataFromDB(index, e)}
+                className="col-span-2 text-white bg-slate-600 hover:bg-slate-500 p-3 text-sm mx-3"
+                type="button"
+              >
+                Fetch Data
+              </button>
+            </form>
           ))}
         </div>
-      )}
-      {data.length > 0 && (
+      </div>
+      {entries.map((entrySet, index) => (
+        entrySet.length > 0 && (
+          <div key={index} className="mt-4 w-full">
+            <label className="text-black">Select Entries for {names[index]}: </label>
+            {entrySet.map(entry => (
+              <div key={entry.id}>
+                <input 
+                  type="checkbox"
+                  id={`${index}-${entry.id}`}
+                  value={entry.id}
+                  onChange={() => handleCheckboxChange(index, entry.id)}
+                  checked={selectedEntries[index].includes(entry.id)}
+                />
+                <label htmlFor={`${index}-${entry.id}`}>
+                  {new Date(entry.timestamp.seconds * 1000).toLocaleString()}
+                </label>
+              </div>
+            ))}
+          </div>
+        )
+      ))}
+      {dataSets.some(dataSet => dataSet.length > 0) && (
         <>
           <div className="mt-4">
             <label htmlFor="graphSelect" className="text-black">Select Graph: </label>
@@ -152,12 +171,20 @@ export default function Home() {
               </select>
             )}
           </div>
-          <DynamicGraph
-            selectedGraph={selectedGraph} 
-            graphData={graphData} 
-            mapFilter={mapFilter} 
-            selectedEntries={selectedEntries}
-          />
+          <div className="flex flex-wrap justify-around w-full mt-8">
+            {graphDataSets.map((graphData, index) => (
+              <div key={index} className="w-full sm:w-1/2 p-4">
+                {graphData.length > 0 && (selectedGraph === 'location' ? graphData.some(g => g.mapData.length > 0) : graphData[0][selectedGraph]) && (
+                  <DynamicGraph
+                    selectedGraph={selectedGraph} 
+                    graphData={graphData} 
+                    mapFilter={mapFilter} 
+                    selectedEntries={selectedEntries[index]}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </>
       )}
     </main>
