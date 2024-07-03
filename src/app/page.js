@@ -1,12 +1,16 @@
 'use client';
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Link, useLocation } from 'react-router-dom';
+import dynamic from 'next/dynamic';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
 import UploadSubmitPage from './uploadSubmit';
 import FetchDisplayPage from './fetchDisplay';
 
+// Dynamically import BrowserRouter with SSR disabled
+const BrowserRouter = dynamic(() => import('react-router-dom').then(mod => mod.BrowserRouter), { ssr: false });
+
 function Home() {
   const location = useLocation();
-  
+
   return (
     <div>
       <nav className="flex space-x-4 bg-slate-800 p-4 rounded-lg">
@@ -40,9 +44,9 @@ function Home() {
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Home />
-    </Router>
+    </BrowserRouter>
   );
 }
 
