@@ -7,6 +7,7 @@ const UploadedGraph = ({ selectedGraph, graphData, mapData, mapFilter }) => {
 
   useEffect(() => {
     setIsClient(true);
+    // console.log("heretime", timestamps)
   }, []);
 
   // Filter map data based on mapFilter
