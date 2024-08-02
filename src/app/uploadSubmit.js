@@ -44,8 +44,6 @@ export default function Home() {
     }
   };
 
-  
-
   useEffect(() => {
     if (selectedEntry && entries.length > 0) {
       const entry = entries.find(entry => entry.id === selectedEntry);
@@ -78,7 +76,13 @@ export default function Home() {
     });
   };
 
-  const filteredData = data.filter(row => row['Confidence'] > 70);
+  const filteredData = data.filter(row => {
+    const year = row['Time'] instanceof Date ? row['Time'].getFullYear() : new Date(row['Time']).getFullYear();
+    return row['Confidence'] > 70 && year >= 2024;
+  });
+
+  console.log("Filtered Data:", filteredData);
+
   const timestamps = filteredData.map(row => row['Time']);
   const heartRates = filteredData.map(row => row['Heartrate']);
   const steps = filteredData.map(row => row['Steps']);
@@ -166,5 +170,3 @@ export default function Home() {
     </main>
   );
 }
-
-
