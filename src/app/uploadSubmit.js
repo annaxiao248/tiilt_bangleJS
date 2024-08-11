@@ -16,18 +16,21 @@ export default function Home() {
 
   const submitDB = async (e) => {
     e.preventDefault();
-    if (name !== '' && data.length > 0) {
+    if (name !== '' && filteredData.length > 0) { // Use filteredData instead of data
       const userDocRef = doc(db, 'tiilt-bangleJS', name.trim());
       const userSubCollectionRef = collection(userDocRef, 'entries');
       const newEntry = {
-        data: data,
+        data: filteredData, // Use filteredData instead of data
         timestamp: Timestamp.now()
       };
-
+  
       try {
+        console.log("here", userSubCollectionRef)
+        console.log("new entry",newEntry)
+  
         await addDoc(userSubCollectionRef, newEntry);
         alert('Submission successful!');
-
+  
         setName('');
         setData([]);
         setEntries([]);
@@ -43,6 +46,7 @@ export default function Home() {
       alert('Please enter a name and upload a CSV file.');
     }
   };
+  
 
   useEffect(() => {
     if (selectedEntry && entries.length > 0) {
@@ -80,7 +84,7 @@ export default function Home() {
     const year = row['Time'] instanceof Date ? row['Time'].getFullYear() : new Date(row['Time']).getFullYear();
     return row['Confidence'] > 70 && year >= 2024;
   });
-
+  
   console.log("Filtered Data:", filteredData);
 
   const timestamps = filteredData.map(row => row['Time']);
