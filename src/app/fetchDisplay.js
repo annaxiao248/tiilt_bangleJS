@@ -103,6 +103,18 @@ export default function Home() {
     })
   );
 
+  const combinedGraphData = graphDataSets.reduce((acc, graphData, index) => {
+    graphData.forEach((entryData, entryIndex) => {
+      if (!acc[entryIndex]) acc[entryIndex] = { timestamps: entryData.timestamps, data: [] };
+      acc[entryIndex].data.push({
+        yData: entryData[selectedGraph].yData,
+        name: `User ${index + 1} Entry ${entryIndex + 1}`,
+        line: { dash: index === 0 ? 'solid' : 'dash' }
+      });
+    });
+    return acc;
+  }, []);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24 p-4">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
@@ -171,19 +183,14 @@ export default function Home() {
               </select>
             )}
           </div>
-          <div className="flex flex-wrap justify-around w-full mt-8">
-            {graphDataSets.map((graphData, index) => (
-              <div key={index} className="w-full sm:w-1/2 p-4">
-                {graphData.length > 0 && (selectedGraph === 'location' ? graphData.some(g => g.mapData.length > 0) : graphData[0][selectedGraph]) && (
-                  <DynamicGraph
-                    selectedGraph={selectedGraph} 
-                    graphData={graphData} 
-                    mapFilter={mapFilter} 
-                    selectedEntries={selectedEntries[index]}
-                  />
-                )}
-              </div>
-            ))}
+          <div className="w-full mt-8">
+            {combinedGraphData.length > 0 && (selectedGraph === 'location' ? combinedGraphData.some(g => g.mapData.length > 0) : combinedGraphData[0].data.length > 0) && (
+              <DynamicGraph
+                selectedGraph={selectedGraph}
+                combinedGraphData={combinedGraphData}
+                mapFilter={mapFilter}
+              />
+            )}
           </div>
         </>
       )}
